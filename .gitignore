@@ -1,0 +1,9 @@
+# ── Jupyter artifacts ──
+.ipynb_checkpoints/
+.virtual_documents/
+*.pyc
+__pycache__/
+
+data/**/*.csv
+data/**/*.fmt
+data/**/*.lst
