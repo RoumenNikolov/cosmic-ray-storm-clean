@@ -1,6 +1,7 @@
 # ── Jupyter artifacts ──
 .ipynb_checkpoints/
 .virtual_documents/
+.vscode/
 *.pyc
 __pycache__/
 
