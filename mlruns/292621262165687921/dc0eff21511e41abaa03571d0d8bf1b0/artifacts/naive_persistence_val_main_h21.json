@@ -1,0 +1,10 @@
+{
+  "rmse": 15.437738177582471,
+  "storm_rmse": 60.25154709249072,
+  "mase": 3.494276064801357,
+  "dm_stat": NaN,
+  "dm_pvalue": NaN,
+  "peak_timing_err": 21.0,
+  "n_eval": 52542,
+  "n_storm": 1165
+}

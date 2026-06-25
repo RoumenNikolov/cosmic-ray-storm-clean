@@ -1,0 +1,10 @@
+artifact_location: file:///C:/Temp/python-start/work/PracticalProjects/cosmic-ray-storm/notebooks/../mlruns/292621262165687921/models/m-609d8610efdb493aa4ad7f508e37fa36/artifacts
+creation_timestamp: 1782415413971
+experiment_id: '292621262165687921'
+last_updated_timestamp: 1782415430291
+model_id: m-609d8610efdb493aa4ad7f508e37fa36
+model_type: null
+name: pipeline_h1
+source_run_id: 5ee31b219fac49e6b17b6ad5aa9df4b5
+status: 2
+status_message: null

@@ -1,0 +1,9 @@
+artifact_location: file:///C:/Temp/python-start/work/PracticalProjects/cosmic-ray-storm/notebooks/../mlruns/292621262165687921
+creation_time: 1782395978156
+effective_trace_archival_retention: null
+experiment_id: '292621262165687921'
+last_update_time: 1782395978156
+lifecycle_stage: active
+name: cosmic_ray_storm_prediction
+trace_location: null
+workspace: default

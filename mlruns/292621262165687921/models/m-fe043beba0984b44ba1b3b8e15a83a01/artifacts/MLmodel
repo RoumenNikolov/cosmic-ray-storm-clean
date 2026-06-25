@@ -1,0 +1,28 @@
+artifact_path: file:///C:/Temp/python-start/work/PracticalProjects/cosmic-ray-storm/notebooks/../mlruns/292621262165687921/models/m-fe043beba0984b44ba1b3b8e15a83a01/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.skops
+    predict_fn: predict
+    python_version: 3.11.9
+  sklearn:
+    code: null
+    pickled_model: model.skops
+    serialization_format: skops
+    sklearn_version: 1.9.0
+    skops_trusted_types:
+    - src.estimators.xgboost_dst.XGBoostDst
+    - xgboost.core.Booster
+    - xgboost.sklearn.XGBRegressor
+    - sklearn.pipeline.Pipeline
+    - sklearn.preprocessing._data.StandardScaler
+mlflow_version: 3.14.0
+model_id: m-fe043beba0984b44ba1b3b8e15a83a01
+model_size_bytes: 1416928
+model_uuid: m-fe043beba0984b44ba1b3b8e15a83a01
+prompts: null
+run_id: 1c6f64cbe8d94bed96e36f81d81524fc
+utc_time_created: '2026-06-25 19:33:25.079246'

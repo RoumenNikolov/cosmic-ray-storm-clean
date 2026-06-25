@@ -1,0 +1,15 @@
+artifact_uri: file:///C:/Temp/python-start/work/PracticalProjects/cosmic-ray-storm/notebooks/../mlruns/292621262165687921/a9943506c7b143858c3308f20a8c688e/artifacts
+deleted_time: 1782413685316
+end_time: 1782396162394
+entry_point_name: ''
+experiment_id: '292621262165687921'
+lifecycle_stage: deleted
+run_id: a9943506c7b143858c3308f20a8c688e
+run_name: naive_persistence_val_main_h3
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1782396162218
+status: 3
+tags: []
+user_id: roumen.nikolov

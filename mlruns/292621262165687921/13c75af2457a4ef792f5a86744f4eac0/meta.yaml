@@ -1,0 +1,15 @@
+artifact_uri: file:///C:/Temp/python-start/work/PracticalProjects/cosmic-ray-storm/notebooks/../mlruns/292621262165687921/13c75af2457a4ef792f5a86744f4eac0/artifacts
+deleted_time: 1782416114693
+end_time: 1782415802072
+entry_point_name: ''
+experiment_id: '292621262165687921'
+lifecycle_stage: deleted
+run_id: 13c75af2457a4ef792f5a86744f4eac0
+run_name: xgb_model_c_val_main_h1
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1782415801091
+status: 4
+tags: []
+user_id: roumen.nikolov
