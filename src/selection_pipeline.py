@@ -9,15 +9,15 @@ Classes
 -------
 FeatureSelectionPipeline
     Runs LassoSelector and ExtraTreesSelector for each horizon in K_HORIZONS.
-    A feature is included in SELECTED_FEATURES if it survives in at least
-    min_votes methods at any horizon (union across horizons).
-
-    Two modes are supported:
-    - min_votes=2 (intersection): feature must survive both LASSO and ExtraTrees
-    - min_votes=1 (union): feature survives if in at least one method
+    Consolidation is performed separately via consolidate(min_votes) — allowing
+    strict (min_votes=2) and liberal (min_votes=1) subsets from a single fit.
 
 Notes
 -----
+Input X passed to fit() must be pre-scaled by the caller — typically via
+StandardScaler fitted on masks['train'] only. This keeps the scaling step
+visible in the notebook rather than hidden inside the pipeline.
+
 Both selectors use storm sample weights (1/storm_fraction for
 dst < storm_thr) to prevent suppression of Forbush Decrease signals
 concentrated in storm periods [KIS25].
@@ -48,8 +48,6 @@ class FeatureSelectionPipeline:
     lasso_splits   : int — TimeSeriesSplit folds for LassoCV (default 5)
     et_estimators  : int — ExtraTrees n_estimators (default 100)
     et_threshold_q : float — ExtraTrees importance quantile threshold (default 0.50)
-    min_votes      : int — minimum methods a feature must survive (default 2)
-                     2 = intersection (strict), 1 = union (liberal)
     random_state   : int (default 42)
 
     Attributes
@@ -57,8 +55,9 @@ class FeatureSelectionPipeline:
     results_           : dict — {method: {horizon: [selected features]}}
     fitted_selectors_  : dict — {method: {horizon: fitted selector object}}
     summary_           : DataFrame — features × (method, horizon) boolean matrix
-    selected_          : list — final SELECTED_FEATURES after majority vote
+    selected_          : list — SELECTED_FEATURES after last consolidate() call
     vote_counts_       : Series — number of methods each feature survived
+    min_votes_         : int — min_votes used in last consolidate() call
     """
 
     def __init__(
@@ -69,7 +68,6 @@ class FeatureSelectionPipeline:
         lasso_splits   : int   = 5,
         et_estimators  : int   = 100,
         et_threshold_q : float = 0.50,
-        min_votes      : int   = 2,
         random_state   : int   = 42,
     ):
         self.feature_cols   = feature_cols
@@ -78,7 +76,6 @@ class FeatureSelectionPipeline:
         self.lasso_splits   = lasso_splits
         self.et_estimators  = et_estimators
         self.et_threshold_q = et_threshold_q
-        self.min_votes      = min_votes
         self.random_state   = random_state
 
         self.results_          = {'lasso': {}, 'extra_trees': {}}
@@ -86,6 +83,7 @@ class FeatureSelectionPipeline:
         self.summary_          = None
         self.selected_         = None
         self.vote_counts_      = None
+        self.min_votes_        = None
 
     def fit(self, X: pd.DataFrame, feat: pd.DataFrame) -> "FeatureSelectionPipeline":
         """
@@ -93,7 +91,7 @@ class FeatureSelectionPipeline:
 
         Parameters
         ----------
-        X    : DataFrame — scaled features (train segment only)
+        X    : DataFrame — pre-scaled features (train segment only)
         feat : DataFrame — full feat DataFrame containing dst_target_{k}h columns
 
         Returns
@@ -131,17 +129,25 @@ class FeatureSelectionPipeline:
             self.fitted_selectors_['extra_trees'][k] = et
             print(f"        retained={len(et.get_selected())}/{len(self.feature_cols)}")
 
-        self._consolidate()
         return self
 
-    def _consolidate(self):
+    def consolidate(self, min_votes: int = 2) -> "FeatureSelectionPipeline":
         """
         Majority vote consolidation across methods and horizons.
 
-        A feature is included in SELECTED_FEATURES if it survives
-        in at least min_votes methods at ANY horizon.
+        Can be called multiple times with different min_votes without refitting.
+
+        Parameters
+        ----------
+        min_votes : int — minimum methods a feature must survive (default 2)
+                    2 = intersection (strict), 1 = union (liberal)
+
+        Returns
+        -------
+        self
         """
-        self.summary_ = selection_summary(self.results_, self.feature_cols)
+        self.min_votes_ = min_votes
+        self.summary_   = selection_summary(self.results_, self.feature_cols)
 
         vote_counts = pd.Series(0, index=self.feature_cols)
 
@@ -152,19 +158,20 @@ class FeatureSelectionPipeline:
 
         self.vote_counts_ = vote_counts
         self.selected_    = list(
-            vote_counts[vote_counts >= self.min_votes].index
+            vote_counts[vote_counts >= min_votes].index
         )
+        return self
 
     def get_selected(self) -> list:
-        """Return final SELECTED_FEATURES after majority vote."""
+        """Return final SELECTED_FEATURES after last consolidate() call."""
         if self.selected_ is None:
-            raise RuntimeError("fit() must be called before get_selected().")
+            raise RuntimeError("consolidate() must be called before get_selected().")
         return self.selected_
 
     def print_summary(self):
         """Print vote counts and final selected features."""
         print(f"\n{'='*55}")
-        print(f"Feature Selection Summary  (min_votes={self.min_votes})")
+        print(f"Feature Selection Summary  (min_votes={self.min_votes_})")
         print(f"{'='*55}")
         print(f"\n{'Feature':>30} {'Max votes':>10} {'Selected':>10}")
         print("─" * 55)
