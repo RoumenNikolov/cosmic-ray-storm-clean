@@ -9,6 +9,9 @@ Functions
 rmse(y_true, y_pred)
     Root Mean Squared Error.
 
+r2(y_true, y_pred)
+    R² coefficient of determination.
+
 storm_rmse(y_true, y_pred, storm_thr)
     RMSE restricted to storm hours (y_true < storm_thr).
 
@@ -44,6 +47,7 @@ import warnings
 import numpy as np
 import pandas as pd
 from scipy import stats
+from sklearn.metrics import r2_score as _r2_score
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
@@ -69,15 +73,15 @@ def _newey_west_variance(d: np.ndarray, h: int) -> float:
     -------
     float — HAC variance of the sample mean of d
     """
-    n    = len(d)
-    d_dm = d - d.mean()
+    n       = len(d)
+    d_dm    = d - d.mean()
     gamma_0 = np.dot(d_dm, d_dm) / n
 
     bandwidth = max(h - 1, 0)
     gamma_sum = 0.0
     for lag in range(1, bandwidth + 1):
-        weight  = 1.0 - lag / (bandwidth + 1)
-        gamma_l = np.dot(d_dm[lag:], d_dm[:-lag]) / n
+        weight    = 1.0 - lag / (bandwidth + 1)
+        gamma_l   = np.dot(d_dm[lag:], d_dm[:-lag]) / n
         gamma_sum += weight * gamma_l
 
     variance = (gamma_0 + 2.0 * gamma_sum) / n
@@ -106,6 +110,32 @@ def rmse(y_true, y_pred) -> float:
     return float(np.sqrt(np.mean((yt[mask] - yp[mask]) ** 2)))
 
 
+def r2(y_true, y_pred) -> float:
+    """
+    R² coefficient of determination.
+
+    Measures the proportion of variance in y_true explained by y_pred.
+    A value of 1.0 indicates perfect prediction; 0.0 indicates the model
+    performs no better than predicting the mean; negative values indicate
+    the model performs worse than predicting the mean (i.e. worse than
+    persistence at the same horizon for a stationary series).
+
+    Parameters
+    ----------
+    y_true : array-like — observed values
+    y_pred : array-like — predicted values
+
+    Returns
+    -------
+    float — R² score, or NaN if no finite pairs exist
+    """
+    yt, yp = _to_array(y_true, y_pred)
+    mask   = np.isfinite(yt) & np.isfinite(yp)
+    if mask.sum() == 0:
+        return np.nan
+    return float(_r2_score(yt[mask], yp[mask]))
+
+
 def storm_rmse(y_true, y_pred, storm_thr: float = -50.0) -> float:
     """
     RMSE restricted to storm hours (y_true < storm_thr).
@@ -123,8 +153,8 @@ def storm_rmse(y_true, y_pred, storm_thr: float = -50.0) -> float:
     -------
     float — storm RMSE, or NaN if no storm hours exist in the window
     """
-    yt, yp  = _to_array(y_true, y_pred)
-    mask    = np.isfinite(yt) & np.isfinite(yp) & (yt < storm_thr)
+    yt, yp = _to_array(y_true, y_pred)
+    mask   = np.isfinite(yt) & np.isfinite(yp) & (yt < storm_thr)
     if mask.sum() == 0:
         warnings.warn(
             f"storm_rmse: no storm hours found (y_true < {storm_thr} nT). "
@@ -299,12 +329,12 @@ def peak_timing_error(y_true, y_pred) -> float:
 # ── Master wrapper ────────────────────────────────────────────────────────────
 
 def compute_metrics(
-    y_true   ,
-    y_pred   ,
-    y_train  ,
-    y_persist,
-    storm_thr: float = -50.0,
-    horizon  : int   = 1,
+    y_true,
+    y_pred,
+    y_train,
+    y_persist  = None,
+    storm_thr  : float = -50.0,
+    horizon    : int   = 1,
 ) -> dict:
     """
     Compute all evaluation metrics in a single call.
@@ -314,7 +344,10 @@ def compute_metrics(
     y_true    : array-like — observed Dst values (evaluation set)
     y_pred    : array-like — predicted Dst values (candidate model)
     y_train   : array-like — training set Dst series (for MASE denominator)
-    y_persist : array-like — persistence predictions (for DM test baseline)
+    y_persist : array-like or None — persistence predictions for DM test baseline.
+                If None, the DM test is skipped and dm_stat/dm_pvalue are NaN.
+                Pass None for the Naive Persistence baseline where the DM test
+                is undefined (model compared against itself).
     storm_thr : float — storm threshold in nT (default -50)
     horizon   : int — forecast horizon in hours (for DM Newey-West bandwidth)
 
@@ -322,6 +355,7 @@ def compute_metrics(
     -------
     dict with keys:
         rmse            — overall RMSE
+        r2              — R² coefficient of determination
         storm_rmse      — RMSE on storm hours only
         mase            — Mean Absolute Scaled Error vs one-step persistence
         dm_stat         — Diebold-Mariano statistic (negative = model better)
@@ -330,16 +364,21 @@ def compute_metrics(
         n_eval          — number of finite evaluation pairs
         n_storm         — number of storm hours in evaluation set
     """
-    yt, yp, ytr, ypers = _to_array(y_true, y_pred, y_train, y_persist)
-    finite_mask = np.isfinite(yt) & np.isfinite(yp)
-    storm_mask  = finite_mask & (yt < storm_thr)
+    yt, yp, ytr = _to_array(y_true, y_pred, y_train)
+    finite_mask  = np.isfinite(yt) & np.isfinite(yp)
+    storm_mask   = finite_mask & (yt < storm_thr)
 
-    dm_stat, dm_pvalue = diebold_mariano(
-        yt, ypers, yp, h=horizon, criterion="squared"
-    )
+    if y_persist is not None:
+        ypers = _to_array(y_persist)[0]
+        dm_stat, dm_pvalue = diebold_mariano(
+            yt, ypers, yp, h=horizon, criterion="squared"
+        )
+    else:
+        dm_stat, dm_pvalue = np.nan, np.nan
 
     return {
         "rmse"           : rmse(yt, yp),
+        "r2"             : r2(yt, yp),
         "storm_rmse"     : storm_rmse(yt, yp, storm_thr=storm_thr),
         "mase"           : mase(yt, yp, ytr),
         "dm_stat"        : dm_stat,
