@@ -4,11 +4,13 @@ Estimator classes for the cosmic ray storm prediction project.
 """
 
 from .naive_persistence import NaivePersistence
-from .direct_ar import DirectARBaseline
-from .xgboost_dst import XGBoostDst
+from .direct_ar         import DirectARBaseline
+from .xgboost_dst       import XGBoostDst
+from .lightgbm_dst      import LightGBMDst
 
 __all__ = [
     "NaivePersistence",
     "DirectARBaseline",
     "XGBoostDst",
+    "LightGBMDst",
 ]
