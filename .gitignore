@@ -12,3 +12,4 @@ data/**/*.lst
 .venv311/ 
 mlruns/
 models/
+images/
