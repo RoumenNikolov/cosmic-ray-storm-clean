@@ -9,6 +9,7 @@ __pycache__/
 data/**/*.csv
 data/**/*.fmt
 data/**/*.lst
+data/**/*.analysis_data.parquet
 .venv311/ 
 mlruns/
 models/
