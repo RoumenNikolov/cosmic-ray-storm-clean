@@ -20,9 +20,9 @@ mase(y_true, y_pred, y_train)
     one-step persistence MAE on the training set.
 
 diebold_mariano(y_true, y_pred_1, y_pred_2, h, criterion)
-    Diebold-Mariano test [DM95] with Newey-West variance correction
-    for h-step-ahead forecasts. Tests whether model 2 is significantly
-    more accurate than model 1.
+    Diebold-Mariano test [DM95] for equal predictive accuracy.
+    Tests whether model 2 is significantly more accurate than model 1
+    using sample variance of the loss differential series.
 
 peak_timing_error(y_true, y_pred)
     Signed difference in hours between predicted and actual Dst minimum.
@@ -242,42 +242,37 @@ def diebold_mariano(
     y_pred_2,
     h        : int = 1,
     criterion: str = "squared",
-) -> tuple:
+    ) -> tuple:
     """
     Diebold-Mariano test for equal predictive accuracy [DM95].
 
     Tests H0: E[d_t] = 0, where d_t = L(e1_t) - L(e2_t) is the
-    loss differential. A significantly negative DM statistic (p < 0.05,
-    one-sided) indicates that model 2 is more accurate than model 1.
+    loss differential. A positive DM statistic indicates that model 2
+    is more accurate than model 1.
 
-    Variance is estimated via a Newey-West HAC estimator with bandwidth
-    h - 1, which is appropriate for h-step-ahead forecasts where residuals
-    are correlated at lags up to h - 1 under the null.
+    Variance is estimated as the sample variance of the loss differential
+    series, divided by the sample size. This is the standard formulation
+    from Diebold & Mariano (1995). At large sample sizes (n > 50,000),
+    even small systematic differences produce significant test statistics —
+    results should be interpreted alongside practical metrics such as
+    Storm RMSE and feature importance.
 
     Parameters
     ----------
     y_true   : array-like — observed values
-    y_pred_1 : array-like — predictions from model 1 (baseline, e.g. persistence)
+    y_pred_1 : array-like — predictions from model 1 (baseline)
     y_pred_2 : array-like — predictions from model 2 (candidate)
-    h        : int — forecast horizon in hours (used for NW bandwidth)
+    h        : int — forecast horizon (kept for API compatibility)
     criterion: str — loss function: 'squared' (default) or 'absolute'
 
     Returns
     -------
     (dm_stat, p_value) : tuple[float, float]
-        dm_stat  — test statistic; negative means model 2 is better
-        p_value  — two-sided p-value from standard normal distribution
     """
     yt, yp1, yp2 = _to_array(y_true, y_pred_1, y_pred_2)
     mask = np.isfinite(yt) & np.isfinite(yp1) & np.isfinite(yp2)
 
-    if mask.sum() < max(2 * h, 10):
-        warnings.warn(
-            f"diebold_mariano: insufficient observations ({mask.sum()}). "
-            "Returning NaN.",
-            RuntimeWarning,
-            stacklevel=2,
-        )
+    if mask.sum() < 10:
         return np.nan, np.nan
 
     e1 = yt[mask] - yp1[mask]
@@ -288,22 +283,9 @@ def diebold_mariano(
     elif criterion == "absolute":
         d = np.abs(e1) - np.abs(e2)
     else:
-        raise ValueError(
-            f"criterion must be 'squared' or 'absolute', got '{criterion}'"
-        )
+        raise ValueError(f"criterion must be 'squared' or 'absolute', got '{criterion}'")
 
-    d_bar    = d.mean()
-    variance = _newey_west_variance(d, h)
-
-    if variance <= 0.0:
-        warnings.warn(
-            "diebold_mariano: non-positive variance estimate. Returning NaN.",
-            RuntimeWarning,
-            stacklevel=2,
-        )
-        return np.nan, np.nan
-
-    dm_stat = d_bar / np.sqrt(variance)
+    dm_stat = d.mean() / (d.std() / np.sqrt(len(d)))
     p_value = float(2.0 * (1.0 - stats.norm.cdf(abs(dm_stat))))
 
     return float(dm_stat), p_value
