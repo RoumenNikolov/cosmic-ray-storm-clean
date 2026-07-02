@@ -165,6 +165,26 @@ def storm_rmse(y_true, y_pred, storm_thr: float = -50.0) -> float:
         return np.nan
     return float(np.sqrt(np.mean((yt[mask] - yp[mask]) ** 2)))
 
+def neg_storm_rmse(y_true, y_pred, storm_thr: float = -50.0) -> float:
+    """
+    Negative Storm RMSE for use with sklearn's make_scorer.
+
+    Returns the negative of storm_rmse() so that RandomizedSearchCV,
+    which maximises the scorer, selects the configuration with the
+    lowest Storm RMSE.
+
+    Parameters
+    ----------
+    y_true    : array-like — observed Dst values
+    y_pred    : array-like — predicted Dst values
+    storm_thr : float — storm threshold in nT (default -50)
+
+    Returns
+    -------
+    float — negative Storm RMSE
+    """
+    return -storm_rmse(y_true, y_pred, storm_thr=storm_thr)
+
 
 def mase(y_true, y_pred, y_train) -> float:
     """
@@ -387,3 +407,5 @@ def compute_metrics(
         "n_eval"         : int(finite_mask.sum()),
         "n_storm"        : int(storm_mask.sum()),
     }
+
+    
