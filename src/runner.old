@@ -19,14 +19,6 @@ print_horizon_metrics(h, metrics, extra=None)
 log_metrics_run(run_name, tags, params, metrics, nested)
     Log a single MLflow run with tags, params and metrics.
     NaN and inf values are excluded from metrics logging.
-    Wrapped with mlflow_safe (src.mlflow_tracking) — MLflow failures
-    emit a warning instead of raising.
-
-evaluate_model_on_segments(models_dict, eval_segments, feat_data,
-            feature_set, y_train, horizon, storm_thr, dst_col)
-    Evaluate each model in models_dict on every segment in eval_segments,
-    at a single fixed horizon. Pure computation — no MLflow side effects,
-    no printing. Returns dict {model_name: {seg_name: metrics_dict}}.
 
 run_horizon(model_name, seg_name, h, model, X_seg, y_true,
             y_train, y_persist, storm_thr, extra_params)
@@ -37,7 +29,7 @@ run_horizon(model_name, seg_name, h, model, X_seg, y_true,
 run_segment(model_name, seg_name, X_seg, y_seg, y_train, y_persist,
             models, storm_thr, k_horizons, extra_params_fn)
     Evaluate model for all horizons in one segment.
-    Opens parent MLflow run (via safe_mlflow_run) and delegates to run_horizon().
+    Opens parent MLflow run and delegates to run_horizon().
     Returns dict {horizon: metrics}.
 """
 
@@ -49,7 +41,6 @@ import pandas as pd
 import mlflow
 
 from .evaluate import compute_metrics
-from .mlflow_tracking import mlflow_safe, safe_mlflow_run
 
 
 # ── Training ──────────────────────────────────────────────────────────────────
@@ -96,7 +87,6 @@ def print_horizon_metrics(h: int, metrics: dict, extra: dict = None):
 
 # ── MLflow logging ────────────────────────────────────────────────────────────
 
-@mlflow_safe
 def log_metrics_run(
     run_name : str,
     tags     : dict,
@@ -124,55 +114,6 @@ def log_metrics_run(
             k: float(v) for k, v in metrics.items()
             if isinstance(v, (int, float)) and np.isfinite(float(v))
         })
-
-
-# ── Segment-level evaluation (single horizon) ──────────────────────────────────
-
-def evaluate_model_on_segments(
-    models_dict     : dict,
-    eval_segments   : dict,
-    feat_data,
-    feature_set,
-    y_train,
-    horizon         : int   = 1,
-    storm_thr       : float = -50.0,
-    dst_col         : str   = 'dst',
-) -> dict:
-    """
-    Evaluate each model in models_dict on every segment in eval_segments,
-    at a single fixed horizon. Pure computation — no MLflow side effects,
-    no printing.
-
-    Parameters
-    ----------
-    models_dict   : dict — {model_name: fitted model}
-    eval_segments : dict — {seg_name: boolean mask into feat_data}
-    feat_data     : DataFrame — full feature matrix
-    feature_set   : list of str — feature columns to select from feat_data
-    y_train       : array-like — training series for MASE denominator
-    horizon       : int — forecast horizon in hours (default 1)
-    storm_thr     : float — storm threshold in nT (default -50)
-    dst_col       : str — column name for current Dst (default 'dst')
-
-    Returns
-    -------
-    dict — {model_name: {seg_name: metrics_dict}}
-    """
-    target_col = f'dst_target_{horizon}h'
-    results = {}
-    for model_name, model in models_dict.items():
-        results[model_name] = {}
-        for seg_name, seg_mask in eval_segments.items():
-            y_pred = model.predict(feat_data.loc[seg_mask, feature_set])
-            results[model_name][seg_name] = compute_metrics(
-                y_true    = feat_data.loc[seg_mask, target_col],
-                y_pred    = y_pred,
-                y_train   = y_train,
-                y_persist = feat_data.loc[seg_mask, dst_col].values,
-                storm_thr = storm_thr,
-                horizon   = horizon,
-            )
-    return results
 
 
 # ── Orchestration ─────────────────────────────────────────────────────────────
@@ -277,10 +218,9 @@ def run_segment(
 
     print(f'\n── Segment: {seg_name} ──────────────────────────────────────')
 
-    with safe_mlflow_run(run_name=f'{model_name}_{seg_name}') as run:
-        if run is not None:
-            mlflow.set_tag('model_type',     model_name)
-            mlflow.set_tag('evaluation_set', seg_name)
+    with mlflow.start_run(run_name=f'{model_name}_{seg_name}'):
+        mlflow.set_tag('model_type',     model_name)
+        mlflow.set_tag('evaluation_set', seg_name)
 
         return {
             h: run_horizon(
