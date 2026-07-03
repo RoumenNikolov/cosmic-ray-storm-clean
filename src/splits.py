@@ -18,6 +18,12 @@ Segment structure (chronological):
     Test_Active : 2015-01-01 → 2015-12-31  (Solar Cycle 24 maximum)
     Test_Quiet  : 2016-01-01 → 2023-07-10  (Solar Cycle 24-25 transition)
 
+Note: the dates above are the raw BOUNDARIES values. build_masks() additionally
+trims PURGE_H hours from the applicable start/end of each segment (per the
+purge_start/purge_end flags below), so the effective date range used by each
+mask is narrower than the nominal boundaries shown here — by up to 21 hours
+at each purged edge.
+
 train_mask = Train_1 | Train_2 (Val_Storm excluded despite date overlap).
 
 Usage

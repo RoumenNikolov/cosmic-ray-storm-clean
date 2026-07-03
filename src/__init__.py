@@ -8,7 +8,7 @@ from .selection_pipeline import FeatureSelectionPipeline
 from .selection_visualization import plot_lasso_vs_et, plot_et_heatmap
 from .utils import build_storm_weights, selection_summary
 from .split_visualization import plot_dst_split_distribution
-from .config import STORM_THR, K_HORIZONS, H_STAR, EXPERIMENT_NAME
+from .config import STORM_THR, K_HORIZONS, EXPERIMENT_NAME
 
 __all__ = [
     "LassoSelector",
@@ -22,6 +22,5 @@ __all__ = [
     "selection_summary",
     "STORM_THR",
     "K_HORIZONS",
-    "H_STAR",
     "EXPERIMENT_NAME",    
 ]

@@ -57,37 +57,6 @@ def _to_array(*args):
     return [np.asarray(a, dtype=np.float64).ravel() for a in args]
 
 
-def _newey_west_variance(d: np.ndarray, h: int) -> float:
-    """
-    Newey-West HAC variance estimate for the DM loss differential series.
-
-    For an h-step-ahead forecast, residuals are correlated up to lag h-1
-    under the null. The bandwidth is set to h - 1.
-
-    Parameters
-    ----------
-    d : np.ndarray — loss differential series (e1^2 - e2^2)
-    h : int — forecast horizon in hours
-
-    Returns
-    -------
-    float — HAC variance of the sample mean of d
-    """
-    n       = len(d)
-    d_dm    = d - d.mean()
-    gamma_0 = np.dot(d_dm, d_dm) / n
-
-    bandwidth = max(h - 1, 0)
-    gamma_sum = 0.0
-    for lag in range(1, bandwidth + 1):
-        weight    = 1.0 - lag / (bandwidth + 1)
-        gamma_l   = np.dot(d_dm[lag:], d_dm[:-lag]) / n
-        gamma_sum += weight * gamma_l
-
-    variance = (gamma_0 + 2.0 * gamma_sum) / n
-    return float(variance)
-
-
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def rmse(y_true, y_pred) -> float:
@@ -351,7 +320,8 @@ def compute_metrics(
                 Pass None for the Naive Persistence baseline where the DM test
                 is undefined (model compared against itself).
     storm_thr : float — storm threshold in nT (default -50)
-    horizon   : int — forecast horizon in hours (for DM Newey-West bandwidth)
+    horizon   : int — forecast horizon in hours (kept for API compatibility
+                with diebold_mariano(); not used in the variance calculation)
 
     Returns
     -------
@@ -360,7 +330,8 @@ def compute_metrics(
         r2              — R² coefficient of determination
         storm_rmse      — RMSE on storm hours only
         mase            — Mean Absolute Scaled Error vs one-step persistence
-        dm_stat         — Diebold-Mariano statistic (negative = model better)
+        dm_stat         — Diebold-Mariano statistic (positive = candidate
+                           model [y_pred] more accurate than y_persist)
         dm_pvalue       — DM two-sided p-value
         peak_timing_err — signed timing error in hours (NaN if no storm)
         n_eval          — number of finite evaluation pairs
