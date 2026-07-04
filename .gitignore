@@ -6,10 +6,7 @@
 *.pyc
 __pycache__/
 
-data/**/*.csv
-data/**/*.fmt
-data/**/*.lst
-data/**/*.analysis_data.parquet
+data
 .venv311/ 
 mlruns/
 models/
