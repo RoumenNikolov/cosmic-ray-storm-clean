@@ -2,11 +2,15 @@
 .ipynb_checkpoints/
 .virtual_documents/
 .vscode/
+
 *.pyc
 __pycache__/
 
 data/**/*.csv
 data/**/*.fmt
 data/**/*.lst
+data/**/*.analysis_data.parquet
 .venv311/ 
- 
+mlruns/
+models/
+images/
