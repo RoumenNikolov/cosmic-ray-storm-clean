@@ -10,14 +10,16 @@ domain background.
 The project is split across several notebooks, each depending on artifacts produced by the
 ones before it. **Run them in this order:**
 
-| # | Notebook | Produces | Consumes |
-|---|---|---|---|
-| 1 | `cosmic_ray_storm_prediction_EDA.ipynb` | — (Abstract, Introduction, Prior Work, IDA, Data Cleaning, EDA) | Raw OMNI/LMKS data |
-| 2 | `cosmic_ray_storm_prediction_FE.ipynb` | `data/processed/feat_split.parquet`, `models/context_constants.pkl` | Cleaned data from step 1 |
-| 3 | `feature_selection.ipynb` | `models/feature_selection_results.pkl` | Outputs of step 2 |
-| 4 | `cosmic_ray_storm_prediction_NFG.ipynb` | Selected model/horizon ($h^*$), MODEL_A–D comparison | Outputs of steps 2–3 |
-| 5 | `reference_performance_and_hpo.ipynb` | `models/hp_opt_results.pkl` (tuned XGBoost/LightGBM) | Outputs of steps 2–4 |
-| 6 | `cosmic_ray_storm_prediction_ML.ipynb` | Final model, test set evaluation, Conclusion | Outputs of steps 2–5 |
+| # | Notebook | Produces | Consumes | Execution time |
+|---|---|---|---|---|
+| 1 | `cosmic_ray_storm_prediction_EDA.ipynb` | — (Abstract, Introduction, Prior Work, IDA, Data Cleaning, EDA) | Raw OMNI/LMKS data | not independently timed |
+| 2 | `cosmic_ray_storm_prediction_FE.ipynb` | `data/processed/feat_split.parquet`, `models/context_constants.pkl` | Cleaned data from step 1 | not independently timed |
+| 3 | `feature_selection.ipynb` | `models/feature_selection_results.pkl` | Outputs of step 2 | not independently timed |
+| 4 | `cosmic_ray_storm_prediction_NFG.ipynb` | Selected model/horizon ($h^*$), MODEL_A–D comparison | Outputs of steps 2–3 | not independently timed |
+| 5 | `reference_performance_and_hpo.ipynb` | `models/hp_opt_results.pkl` (tuned XGBoost/LightGBM) | Outputs of steps 2–4 | ~80 min (XGBoost search 45.3 min + LightGBM search 34.1 min; dominates the notebook's total runtime) |
+| 6 | `cosmic_ray_storm_prediction_ML.ipynb` | Final model, test set evaluation, Conclusion | Outputs of steps 2–5 | ~1.2 min |
+
+**A note on the times above, in the interest of not overstating what's been measured:** rows 5 and 6 are confirmed — row 5 from the actual search timing printed during hyperparameter optimisation, row 6 from a full, independent end-to-end re-execution used to verify this notebook's results during development. Rows 1–4 have not been independently timed by whoever last edited this table; if you run the full pipeline yourself, consider filling these in from your own `Run All`.
 
 Supporting library code lives in `src/` (feature selectors, custom estimators, evaluation
 metrics, AR(2) correction, split definitions) and `src/domain_figures.py` /
@@ -85,9 +87,11 @@ any code or pulling any data. `dvc pull` is only needed to re-execute the pipeli
 
 ## Reproducibility notes
 
-- Every notebook that calls `setup_mlflow()` writes to a local `./mlruns` directory (file-based
-  MLflow tracking store) — generated fresh on each run, not committed to this repository (see
-  `.gitignore`). Running the notebooks yourself will create your own local copy.
+- MLflow tracking is **off by default** (`ENABLE_MLFLOW = False` in `src/config.py`) — no
+  `./mlruns` directory is created unless this is explicitly switched to `True`. Two notebooks
+  (`reference_performance_and_hpo.ipynb`, `cosmic_ray_storm_prediction_ML.ipynb`) log real
+  experiment-tracking data when enabled; the rest either don't use MLflow at all or only
+  initialise it without logging anything.
 - `n_jobs=1` is used for model fitting in the Validation stage
   (`cosmic_ray_storm_prediction_NFG.ipynb`) after an earlier run-to-run instability was
   observed with `n_jobs=-1`; the root cause was not fully identified (see that notebook's

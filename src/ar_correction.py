@@ -50,6 +50,36 @@ def fit_ar2_correction(model, X_train: pd.DataFrame, y_train: pd.Series, label: 
     return c, phi1, phi2
 
 
+def align_hybrid_to_window(preds, base_idx, feat_data, window_start, window_end, lag):
+    """
+    Align AR(2)-hybrid predictions to a specific datetime window, for plotting.
+
+    run_hybrid() internally trims its output by `lag+1` rows relative to the
+    original evaluation index (the leakage-free walk-forward correction can only
+    start once enough residual history exists). This repeats that same trimming
+    to recover the correct datetimes for a subset of `preds`, then filters to a
+    window — used, for instance, to zoom into a single storm event.
+
+    Parameters
+    ----------
+    preds        : array — hybrid predictions, as returned by run_hybrid()
+    base_idx     : pd.Index — the original (untrimmed) evaluation index that
+                   `preds` was computed from (e.g. test_active_idx)
+    feat_data    : DataFrame — full feature matrix (for datetime lookup)
+    window_start : pd.Timestamp — window lower bound
+    window_end   : pd.Timestamp — window upper bound
+    lag          : int — horizon + delay, matching the value passed to run_hybrid()
+
+    Returns
+    -------
+    (window_preds, window_datetime) : tuple[np.ndarray, np.ndarray]
+    """
+    trimmed_idx = base_idx[lag + 1:]
+    trimmed_datetime = feat_data.loc[trimmed_idx, 'datetime'].values
+    window_mask = (trimmed_datetime >= window_start) & (trimmed_datetime <= window_end)
+    return preds[window_mask], trimmed_datetime[window_mask]
+
+
 def run_hybrid(
     model,
     feat_data: pd.DataFrame,
