@@ -49,6 +49,9 @@ class LightGBMDst(BaseEstimator, RegressorMixin):
     learning_rate  : float — step size shrinkage (default 0.05)
     num_leaves     : int   — maximum number of leaves per tree (default 31)
     subsample      : float — row subsampling ratio (default 0.8)
+    subsample_freq : int   — bagging frequency in boosting rounds; must be > 0
+                     for `subsample` to have any effect — LightGBM's own default
+                     of 0 disables bagging regardless of `subsample` (default 1)
     colsample_bytree: float — feature subsampling ratio (default 0.8)
     reg_alpha      : float — L1 regularisation (default 0.0)
     reg_lambda     : float — L2 regularisation (default 1.0)
@@ -69,6 +72,7 @@ class LightGBMDst(BaseEstimator, RegressorMixin):
         learning_rate   : float = 0.05,
         num_leaves      : int   = 31,
         subsample       : float = 0.8,
+        subsample_freq  : int   = 1,
         colsample_bytree: float = 0.8,
         reg_alpha       : float = 0.0,
         reg_lambda      : float = 1.0,
@@ -81,6 +85,7 @@ class LightGBMDst(BaseEstimator, RegressorMixin):
         self.learning_rate    = learning_rate
         self.num_leaves       = num_leaves
         self.subsample        = subsample
+        self.subsample_freq   = subsample_freq
         self.colsample_bytree = colsample_bytree
         self.reg_alpha        = reg_alpha
         self.reg_lambda       = reg_lambda
@@ -124,6 +129,7 @@ class LightGBMDst(BaseEstimator, RegressorMixin):
             learning_rate    = self.learning_rate,
             num_leaves       = self.num_leaves,
             subsample        = self.subsample,
+            subsample_freq   = self.subsample_freq,
             colsample_bytree = self.colsample_bytree,
             reg_alpha        = self.reg_alpha,
             reg_lambda       = self.reg_lambda,
