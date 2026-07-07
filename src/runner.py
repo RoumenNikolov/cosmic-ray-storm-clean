@@ -107,6 +107,9 @@ def log_metrics_run(
     """
     Log a single MLflow run with tags, params and metrics.
     NaN and inf values are excluded from metrics logging.
+    No-ops (does nothing) if ENABLE_MLFLOW is off (src/config.py) —
+    goes through safe_mlflow_run(), same as run_segment() below, rather
+    than calling mlflow.start_run() directly.
 
     Parameters
     ----------
@@ -116,7 +119,9 @@ def log_metrics_run(
     metrics  : dict — output of compute_metrics()
     nested   : bool — whether this is a nested child run (default False)
     """
-    with mlflow.start_run(run_name=run_name, nested=nested):
+    with safe_mlflow_run(run_name=run_name, nested=nested) as run:
+        if run is None:
+            return
         for k, v in tags.items():
             mlflow.set_tag(k, v)
         mlflow.log_params(params)

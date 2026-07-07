@@ -21,7 +21,8 @@ from dominating the loss:
     Dst = -50  nT → w = 1.0
     Dst = -100 nT → w = 2.0
     Dst = -200 nT → w = 4.0
-    Dst = -422 nT → w = 8.44 (Halloween 2003, capped at 10.0)
+    Dst = -422 nT → w = 8.44 (Halloween 2003; below the 10.0 cap)
+    Dst = -500 nT → w = 10.0 (cap reached)
 
 References
 ----------

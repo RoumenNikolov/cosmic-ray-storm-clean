@@ -75,6 +75,7 @@ class LightGBMDstV2(LightGBMDst):
             learning_rate    = self.learning_rate,
             num_leaves       = self.num_leaves,
             subsample        = self.subsample,
+            subsample_freq   = self.subsample_freq,
             colsample_bytree = self.colsample_bytree,
             reg_alpha        = self.reg_alpha,
             reg_lambda       = self.reg_lambda,
