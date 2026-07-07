@@ -6,8 +6,6 @@
 *.pyc
 __pycache__/
 
-data/
+
 venv/ 
 mlruns/
-models/
-images/

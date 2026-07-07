@@ -10,16 +10,57 @@ domain background.
 The project is split across several notebooks, each depending on artifacts produced by the
 ones before it. **Run them in this order:**
 
-| # | Notebook | Produces | Consumes | Execution time |
-|---|---|---|---|---|
-| 1 | `cosmic_ray_storm_prediction_EDA.ipynb` | — (Abstract, Introduction, Prior Work, IDA, Data Cleaning, EDA) | Raw OMNI/LMKS data | not independently timed |
-| 2 | `cosmic_ray_storm_prediction_FE.ipynb` | `data/processed/feat_split.parquet`, `models/context_constants.pkl` | Cleaned data from step 1 | not independently timed |
-| 3 | `feature_selection.ipynb` | `models/feature_selection_results.pkl` | Outputs of step 2 | not independently timed |
-| 4 | `cosmic_ray_storm_prediction_NFG.ipynb` | Selected model/horizon ($h^*$), MODEL_A–D comparison | Outputs of steps 2–3 | not independently timed |
-| 5 | `reference_performance_and_hpo.ipynb` | `models/hp_opt_results.pkl` (tuned XGBoost/LightGBM) | Outputs of steps 2–4 | ~80 min (XGBoost search 45.3 min + LightGBM search 34.1 min; dominates the notebook's total runtime) |
-| 6 | `cosmic_ray_storm_prediction_ML.ipynb` | Final model, test set evaluation, Conclusion | Outputs of steps 2–5 | ~1.2 min |
+**1. `cosmic_ray_storm_prediction_EDA.ipynb`** — repository root.
+Domain background, prior work, and first look at the raw data: initial data analysis, cleaning,
+and exploratory analysis of the OMNI solar wind and neutron-monitor records.
+*Produces:* Abstract, Introduction, Prior Work, IDA, Data Cleaning, EDA sections.
+*Depends on:* raw OMNI/LMKS data.
 
-**A note on the times above, in the interest of not overstating what's been measured:** rows 5 and 6 are confirmed — row 5 from the actual search timing printed during hyperparameter optimisation, row 6 from a full, independent end-to-end re-execution used to verify this notebook's results during development. Rows 1–4 have not been independently timed by whoever last edited this table; if you run the full pipeline yourself, consider filling these in from your own `Run All`.
+**2. `cosmic_ray_storm_prediction_FE.ipynb`** — repository root.
+Builds the engineered feature set (lags, rolling stats, cyclical encodings) and the
+chronological train/validation/test split used by every notebook after this one.
+*Produces:* `feat_split.parquet`, `context_constants.pkl`.
+*Depends on:* step 1.
+
+**3. `feature_selection.ipynb`** — `notebooks/` subfolder (uses `../data/...`, `../models/...`
+relative paths — run it from inside that folder, not the repository root).
+Narrows the engineered features down to a working predictor subset, combining LASSO and
+ExtraTrees selection with a majority-vote rule across all five forecasting horizons.
+*Produces:* `feature_selection_results.pkl`.
+*Depends on:* step 2.
+
+**4. `cosmic_ray_storm_prediction_NFG.ipynb`** — repository root.
+Tests whether neutron-monitor features improve $D_{st}$ forecasting beyond OMNI alone, under
+a controlled protocol, and selects the forecasting horizon $h^*$ on that basis.
+*Produces:* selected horizon $h^*$, MODEL_A–D comparison.
+*Depends on:* steps 2–3.
+
+**5. `reference_performance_and_hpo.ipynb`** — `notebooks/` subfolder (same relative-path
+convention as step 3 — run it from inside that folder).
+Tunes XGBoost and LightGBM hyperparameters at $h^*$ via `RandomizedSearchCV`.
+*Produces:* `hp_opt_results.pkl` (tuned estimators, best params, CV results).
+*Depends on:* steps 2–4.
+
+**6. `cosmic_ray_storm_prediction_ML.ipynb`** — repository root.
+Turns the tuned models into an operational forecaster: validates them, compares
+storm-weighting strategies, applies an AR(2) residual correction, selects a final
+configuration, and evaluates it on the held-out test set.
+*Produces:* final model, test set evaluation, Conclusion.
+*Depends on:* steps 2–5.
+
+**A note on the folder split, for transparency:** steps 3 and 5 use relative paths one level
+up from the other four notebooks (`../data/...` instead of `data/...`) — confirmed directly
+from their own code, not assumed. This means they need to be run from a `notebooks/`
+subfolder, not the repository root where the other four live. This inconsistency is real, not
+a documentation gap, and worth fixing (moving both to the root, or moving all six into
+`notebooks/` consistently) rather than just working around it here.
+
+**Execution time.** Only two notebooks have been independently timed: step 5 takes roughly
+80 minutes (XGBoost search 45.3 min + LightGBM search 34.1 min — this dominates the notebook's
+total runtime), and step 6 takes roughly 1.2 minutes, confirmed via a full end-to-end
+re-execution during development. Steps 1–4 haven't been independently timed by whoever last
+edited this file — if you run the full pipeline yourself, consider filling these in from your
+own `Run All`.
 
 Supporting library code lives in `src/` (feature selectors, custom estimators, evaluation
 metrics, AR(2) correction, split definitions) and `src/domain_figures.py` /
@@ -73,17 +114,32 @@ recent version, not pinned here since it doesn't affect the analysis results.
 
 ## Data and model artifacts
 
-Large data and model files (`data/processed/feat_split.parquet`,
-`models/feature_selection_results.pkl`, `models/hp_opt_results.pkl`, etc.) are tracked with
-[DVC](https://dvc.org) rather than committed directly to this Git repository.
+Large data and model files aren't committed directly to this Git repository. They're available
+as four public archives — no AWS account or credentials needed.
 
-```bash
-dvc pull
-```
+**To run the full pipeline from scratch, only one archive is required:**
 
-pulls them from the configured remote. All notebooks in this repository are submitted with
-their outputs already executed and saved — they can be read directly on GitHub without running
-any code or pulling any data. `dvc pull` is only needed to re-execute the pipeline from scratch.
+| Archive | Extract to | Contents |
+|---|---|---|
+| [`data_input.zip`](https://ai-and-ml-2026.s3.eu-north-1.amazonaws.com/cosmic-ray-storm-prediction/backup/data_input.zip) | `data/input/` | Raw OMNI/LMKS input files |
+
+Everything else — `data/processed/feat_split.parquet`, everything in `models/`, every figure in
+`images/` — is generated by running the notebooks in the order given in Repository Structure
+above, starting from this raw input data.
+
+**If you'd rather skip straight to a later notebook** (e.g. go directly to
+`cosmic_ray_storm_prediction_ML.ipynb` without re-running EDA/FE/feature selection/Validation/HPO
+first), grab the archives with the intermediate results those earlier stages already produced:
+
+| Archive | Extract to | Contents |
+|---|---|---|
+| [`data_processed.zip`](https://ai-and-ml-2026.s3.eu-north-1.amazonaws.com/cosmic-ray-storm-prediction/backup/data_processed.zip) | `data/processed/` | `feat_split.parquet` and related processed artifacts |
+| [`models.zip`](https://ai-and-ml-2026.s3.eu-north-1.amazonaws.com/cosmic-ray-storm-prediction/backup/models.zip) | `models/` | `context_constants.pkl`, `feature_selection_results.pkl`, `hp_opt_results.pkl`, etc. |
+| [`images.zip`](https://ai-and-ml-2026.s3.eu-north-1.amazonaws.com/cosmic-ray-storm-prediction/backup/images.zip) | `images/` | Already-rendered figures, if you just want to view them without regenerating |
+
+All notebooks are submitted with their outputs already executed and saved — they can be read
+directly on GitHub without downloading anything or running any code at all. These archives are
+only needed if you want to actually re-execute part or all of the pipeline yourself.
 
 ## Reproducibility notes
 
@@ -96,10 +152,16 @@ any code or pulling any data. `dvc pull` is only needed to re-execute the pipeli
   (`cosmic_ray_storm_prediction_NFG.ipynb`) after an earlier run-to-run instability was
   observed with `n_jobs=-1`; the root cause was not fully identified (see that notebook's
   Summary section) but confirmed to be resolved by repeated independent execution.
-- `reference_performance_and_hpo.ipynb` and `cosmic_ray_storm_prediction_ML.ipynb` continue to
-  use `n_jobs=-1` — a controlled test found no evidence that this notebook's specific
-  instability was caused by multi-threaded tree construction, and hyperparameter search
-  coverage benefits from full parallelism there.
+  `cosmic_ray_storm_prediction_ML.ipynb` applies the same fix specifically to its two
+  from-scratch XGBoost retrains (`XGBoostDstV2` in Storm Weighting Strategy, `XGBoostDst` for
+  the MODEL_A baseline in Final Model Selection) — confirmed by direct testing to produce
+  bit-identical predictions across separate fits, at negligible cost since these are one-off
+  retrains, not repeated hyperparameter searches.
+- `reference_performance_and_hpo.ipynb` continues to use `n_jobs=-1` for its `XGBoostDst`
+  instances — a controlled test found no evidence that instability was caused by
+  multi-threaded tree construction, and the 250-fit hyperparameter search benefits
+  substantially from full parallelism there; changing the default would only cost time with
+  no established reproducibility benefit for this specific search.
 - `reference_performance_and_hpo.ipynb` includes an automated check for a documented
   degenerate hyperparameter configuration (low `learning_rate` with high `n_estimators` under
   inverse-frequency storm weighting); see that notebook for details.
