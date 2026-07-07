@@ -188,7 +188,13 @@ def mase(y_true, y_pred, y_train) -> float:
 
     mae_num = np.mean(np.abs(yt[eval_mask] - yp[eval_mask]))
 
-    train_diffs = np.abs(np.diff(ytr[np.isfinite(ytr)]))
+    # Diff is computed on the original (ordered) sequence first; only then
+    # are non-finite differences dropped. This avoids silently bridging two
+    # non-adjacent timestamps across a gap/NaN in y_train — if ytr[i] is NaN,
+    # both diff[i-1] and diff[i] become NaN and are excluded, rather than
+    # diff(ytr) implicitly treating the surviving neighbours as adjacent.
+    train_diffs = np.abs(np.diff(ytr))
+    train_diffs = train_diffs[np.isfinite(train_diffs)]
     if len(train_diffs) == 0:
         return np.nan
 
@@ -260,7 +266,7 @@ def diebold_mariano(
     return float(dm_stat), p_value
 
 
-def peak_timing_error(y_true, y_pred) -> float:
+def peak_timing_error(y_true, y_pred, storm_thr: float = -50.0) -> float:
     """
     Signed peak timing error in hours.
 
@@ -270,13 +276,14 @@ def peak_timing_error(y_true, y_pred) -> float:
     A positive value means the model predicts the storm peak too late;
     a negative value means too early.
 
-    Returns NaN when no storm (y_true < -50 nT) is present, or when
+    Returns NaN when no storm (y_true < storm_thr) is present, or when
     the evaluation window contains fewer than 2 finite observations.
 
     Parameters
     ----------
-    y_true : array-like — observed Dst values
-    y_pred : array-like — predicted Dst values
+    y_true    : array-like — observed Dst values
+    y_pred    : array-like — predicted Dst values
+    storm_thr : float — storm threshold in nT (default -50.0)
 
     Returns
     -------
@@ -288,7 +295,7 @@ def peak_timing_error(y_true, y_pred) -> float:
     if mask.sum() < 2:
         return np.nan
 
-    if not np.any(yt[mask] < -50.0):
+    if not np.any(yt[mask] < storm_thr):
         return np.nan
 
     idx_true = int(np.argmin(yt[mask]))
@@ -356,9 +363,35 @@ def compute_metrics(
         "mase"           : mase(yt, yp, ytr),
         "dm_stat"        : dm_stat,
         "dm_pvalue"      : dm_pvalue,
-        "peak_timing_err": peak_timing_error(yt, yp),
+        "peak_timing_err": peak_timing_error(yt, yp, storm_thr=storm_thr),
         "n_eval"         : int(finite_mask.sum()),
         "n_storm"        : int(storm_mask.sum()),
     }
 
     
+
+
+def dm_hybrid(true_vals, preds_a, preds_b, h=7):
+    """
+    Two-sided Diebold-Mariano test — thin convenience wrapper around diebold_mariano().
+
+    Positive statistic means preds_b is more accurate than preds_a.
+
+    Note: the test is two-sided, matching diebold_mariano()'s own p-value formula
+    (2 * (1 - Phi(|stat|))). An earlier version of this notebook labelled one of two
+    duplicated copies of this function "one-sided" — both copies called the same
+    underlying two-sided computation; this docstring reflects what is actually computed.
+
+    Parameters
+    ----------
+    true_vals : array-like — observed values
+    preds_a   : array-like — predictions from model A (baseline)
+    preds_b   : array-like — predictions from model B (candidate)
+    h         : int — forecast horizon (default 7)
+
+    Returns
+    -------
+    (stat, p) : tuple[float, float]
+    """
+    stat, p = diebold_mariano(true_vals, preds_a, preds_b, h=h, criterion="squared")
+    return stat, p
