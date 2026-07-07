@@ -10,43 +10,54 @@ domain background.
 The project is split across several notebooks, each depending on artifacts produced by the
 ones before it. **Run them in this order:**
 
+| #   | Notebook                                | Folder          | Execution time |
+| --- | --------------------------------------- | --------------- | -------------- |
+| 1   | `cosmic_ray_storm_prediction_EDA.ipynb` | repository root | ~5 min         |
+| 2   | `cosmic_ray_storm_prediction_FE.ipynb`  | repository root | ~5 min         |
+| 3   | `feature_selection.ipynb`               | `notebooks/`    | ~20 min        |
+| 4   | `cosmic_ray_storm_prediction_NFG.ipynb` | repository root | ~5 min         |
+| 5   | `reference_performance_and_hpo.ipynb`   | `notebooks/`    | ~80 min        |
+| 6   | `cosmic_ray_storm_prediction_ML.ipynb`  | repository root | ~1.2 min       |
+
+Full description of what each notebook produces, consumes, and is for:
+
 **1. `cosmic_ray_storm_prediction_EDA.ipynb`** — repository root.
 Domain background, prior work, and first look at the raw data: initial data analysis, cleaning,
 and exploratory analysis of the OMNI solar wind and neutron-monitor records.
-*Produces:* Abstract, Introduction, Prior Work, IDA, Data Cleaning, EDA sections.
-*Depends on:* raw OMNI/LMKS data.
+_Produces:_ Abstract, Introduction, Prior Work, IDA, Data Cleaning, EDA sections.
+_Depends on:_ raw OMNI/LMKS data.
 
 **2. `cosmic_ray_storm_prediction_FE.ipynb`** — repository root.
 Builds the engineered feature set (lags, rolling stats, cyclical encodings) and the
 chronological train/validation/test split used by every notebook after this one.
-*Produces:* `feat_split.parquet`, `context_constants.pkl`.
-*Depends on:* step 1.
+_Produces:_ `feat_split.parquet`, `context_constants.pkl`.
+_Depends on:_ step 1.
 
 **3. `feature_selection.ipynb`** — `notebooks/` subfolder (uses `../data/...`, `../models/...`
 relative paths — run it from inside that folder, not the repository root).
 Narrows the engineered features down to a working predictor subset, combining LASSO and
 ExtraTrees selection with a majority-vote rule across all five forecasting horizons.
-*Produces:* `feature_selection_results.pkl`.
-*Depends on:* step 2.
+_Produces:_ `feature_selection_results.pkl`.
+_Depends on:_ step 2.
 
 **4. `cosmic_ray_storm_prediction_NFG.ipynb`** — repository root.
 Tests whether neutron-monitor features improve $D_{st}$ forecasting beyond OMNI alone, under
 a controlled protocol, and selects the forecasting horizon $h^*$ on that basis.
-*Produces:* selected horizon $h^*$, MODEL_A–D comparison.
-*Depends on:* steps 2–3.
+_Produces:_ selected horizon $h^*$, MODEL_A–D comparison.
+_Depends on:_ steps 2–3.
 
 **5. `reference_performance_and_hpo.ipynb`** — `notebooks/` subfolder (same relative-path
 convention as step 3 — run it from inside that folder).
 Tunes XGBoost and LightGBM hyperparameters at $h^*$ via `RandomizedSearchCV`.
-*Produces:* `hp_opt_results.pkl` (tuned estimators, best params, CV results).
-*Depends on:* steps 2–4.
+_Produces:_ `hp_opt_results.pkl` (tuned estimators, best params, CV results).
+_Depends on:_ steps 2–4.
 
 **6. `cosmic_ray_storm_prediction_ML.ipynb`** — repository root.
 Turns the tuned models into an operational forecaster: validates them, compares
 storm-weighting strategies, applies an AR(2) residual correction, selects a final
 configuration, and evaluates it on the held-out test set.
-*Produces:* final model, test set evaluation, Conclusion.
-*Depends on:* steps 2–5.
+_Produces:_ final model, test set evaluation, Conclusion.
+_Depends on:_ steps 2–5.
 
 **A note on the folder split, for transparency:** steps 3 and 5 use relative paths one level
 up from the other four notebooks (`../data/...` instead of `data/...`) — confirmed directly
@@ -119,8 +130,8 @@ as four public archives — no AWS account or credentials needed.
 
 **To run the full pipeline from scratch, only one archive is required:**
 
-| Archive | Extract to | Contents |
-|---|---|---|
+| Archive                                                                                                                  | Extract to    | Contents                  |
+| ------------------------------------------------------------------------------------------------------------------------ | ------------- | ------------------------- |
 | [`data_input.zip`](https://ai-and-ml-2026.s3.eu-north-1.amazonaws.com/cosmic-ray-storm-prediction/backup/data_input.zip) | `data/input/` | Raw OMNI/LMKS input files |
 
 Everything else — `data/processed/feat_split.parquet`, everything in `models/`, every figure in
@@ -131,11 +142,11 @@ above, starting from this raw input data.
 `cosmic_ray_storm_prediction_ML.ipynb` without re-running EDA/FE/feature selection/Validation/HPO
 first), grab the archives with the intermediate results those earlier stages already produced:
 
-| Archive | Extract to | Contents |
-|---|---|---|
-| [`data_processed.zip`](https://ai-and-ml-2026.s3.eu-north-1.amazonaws.com/cosmic-ray-storm-prediction/backup/data_processed.zip) | `data/processed/` | `feat_split.parquet` and related processed artifacts |
-| [`models.zip`](https://ai-and-ml-2026.s3.eu-north-1.amazonaws.com/cosmic-ray-storm-prediction/backup/models.zip) | `models/` | `context_constants.pkl`, `feature_selection_results.pkl`, `hp_opt_results.pkl`, etc. |
-| [`images.zip`](https://ai-and-ml-2026.s3.eu-north-1.amazonaws.com/cosmic-ray-storm-prediction/backup/images.zip) | `images/` | Already-rendered figures, if you just want to view them without regenerating |
+| Archive                                                                                                                          | Extract to        | Contents                                                                             |
+| -------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------ |
+| [`data_processed.zip`](https://ai-and-ml-2026.s3.eu-north-1.amazonaws.com/cosmic-ray-storm-prediction/backup/data_processed.zip) | `data/processed/` | `feat_split.parquet` and related processed artifacts                                 |
+| [`models.zip`](https://ai-and-ml-2026.s3.eu-north-1.amazonaws.com/cosmic-ray-storm-prediction/backup/models.zip)                 | `models/`         | `context_constants.pkl`, `feature_selection_results.pkl`, `hp_opt_results.pkl`, etc. |
+| [`images.zip`](https://ai-and-ml-2026.s3.eu-north-1.amazonaws.com/cosmic-ray-storm-prediction/backup/images.zip)                 | `images/`         | Already-rendered figures, if you just want to view them without regenerating         |
 
 All notebooks are submitted with their outputs already executed and saved — they can be read
 directly on GitHub without downloading anything or running any code at all. These archives are
